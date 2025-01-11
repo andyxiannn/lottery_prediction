@@ -3,11 +3,8 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestClassifier
+from tensorflow.keras.layers import Dense, Dropout, Input
+from tensorflow.keras.models import Model
 
 # Read the data from your txt file (assuming it's already in the correct format)
 data = pd.read_csv("Toto658.txt")
@@ -23,12 +20,9 @@ data.rename(columns={
     "DrawnNo6": "Winning_Number_6"
 }, inplace=True)
 data['DrawNo'] = range(1, len(data) + 1)
-print(data)
-
 
 # Handle all-zero rows by removing them
 data = data[(data != 0).any(axis=1)]  # Remove rows where all columns are zero
-
 
 # Prepare features (e.g., draw numbers) and target (winning numbers)
 X = data[['DrawNo']].values  # Input features
@@ -36,66 +30,54 @@ y = data[['Winning_Number_1', 'Winning_Number_2', 'Winning_Number_3',
           'Winning_Number_4', 'Winning_Number_5', 'Winning_Number_6']].values  # Target
 
 # One-hot encode target values (for numbers, since these are categorical)
-# Initialize OneHotEncoder (encode each number separately)
 encoder = OneHotEncoder(sparse=False, categories='auto')
-
-# We fit and transform the encoder on each number in y
 y_encoded = np.hstack([encoder.fit_transform(y[:, i].reshape(-1, 1)) for i in range(6)])
 
-
 # Step 2: Train/Test Split
-# Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
 
-# Print the shape to confirm everything is correct
-print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
-# Step 3: Define Neural Network Model
-model = Sequential([
-    Dense(64, activation='relu', input_shape=(X_train.shape[1],)),
-    Dropout(0.2),
-    Dense(128, activation='relu'),
-    Dropout(0.2),
-    Dense(y_train.shape[1], activation='softmax')  # 6 * number_of_possible values (each number)
-])
+# Step 3: Define Neural Network Model (Independent Outputs for Each Number)
+input_layer = Input(shape=(X_train.shape[1],))
+
+# Define independent softmax layers for each of the 6 numbers
+output_layers = []
+for i in range(6):
+    output_layers.append(Dense(len(np.arange(1, 46)), activation='softmax', name=f'output_{i+1}')(input_layer))
+
+# Create the model
+model = Model(inputs=input_layer, outputs=output_layers)
 
 # Compile the model
-model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+model.compile(optimizer='adam', loss='categorical_crossentropy', 
+              metrics=['accuracy'] * 6)  # 6 metrics, one for each output
 
 # Step 4: Train the Model
-history = model.fit(X_train, y_train, epochs=50, batch_size=16, validation_data=(X_test, y_test))
+history = model.fit(X_train, [y_train[:, i*45:(i+1)*45] for i in range(6)], 
+                    epochs=50, batch_size=16, 
+                    validation_data=(X_test, [y_test[:, i*45:(i+1)*45] for i in range(6)]))
 
 # Step 5: Predict Future Numbers
-# Example: Predict numbers for draw 2497
 future_draw = np.array([[2497]])  # Draw number you want to predict
 
 # Get the model's predictions (probabilities for each of the 6 numbers)
 predictions = model.predict(future_draw)
 
-# Since predictions are in one-hot encoding format, use np.argmax() to get the index with highest probability
-predicted_numbers = np.argmax(predictions, axis=1)
-
-# Print the predicted numbers for draw 2497
-print("Predicted Winning Numbers for Draw 2497:", predicted_numbers)
 # Print the shape of the predictions to debug
-print("Predictions shape:", predictions.shape)
+print("Predictions shape:", [p.shape for p in predictions])
+
+# Extract the predicted numbers (the ones with the highest probability)
 predicted_numbers = []
-possible_numbers = np.arange(1, 46)  # assuming lottery numbers are from 1 to 59
-# We expect predictions to have shape (1, 354) because 6 * 59 = 354 possible outcomes
+possible_numbers = np.arange(1, 46)  # Adjusted to 45 numbers instead of 59
+
 for i in range(6):
-    # Get the slice corresponding to the probabilities for the i-th number
-    start_idx = i * len(possible_numbers)  # Start index for the i-th number
-    end_idx = (i + 1) * len(possible_numbers)  # End index for the i-th number
-    
-    # Get the slice of probabilities for the i-th number
-    number_probabilities = predictions[0, start_idx:end_idx]
-    
     # Find the index of the highest probability (most likely number)
-    predicted_number_index = np.argmax(number_probabilities)
+    predicted_number_index = np.argmax(predictions[i])
     
     # Map the index back to the actual lottery number
     predicted_number = possible_numbers[predicted_number_index]
     
     predicted_numbers.append(predicted_number)
+
 # Print the predicted winning numbers for draw 2497
 print("Predicted Winning Numbers for Draw 2497:", predicted_numbers)
 
