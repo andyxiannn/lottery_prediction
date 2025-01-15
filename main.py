@@ -14,10 +14,10 @@ data.rename(columns={
     "DrawNo": "Draw_Number",
     "DrawnNo1": "Winning_Number_1",
     "DrawnNo2": "Winning_Number_2",
-    "DrawnNo3": "Winning_Number_3",
-    "DrawnNo4": "Winning_Number_4",
-    "DrawnNo5": "Winning_Number_5",
-    "DrawnNo6": "Winning_Number_6"
+    " DrawnNo3": "Winning_Number_3",
+    " DrawnNo4": "Winning_Number_4",
+    " DrawnNo5": "Winning_Number_5",
+    " DrawnNo6": "Winning_Number_6"
 }, inplace=True)
 data['DrawNo'] = range(1, len(data) + 1)
 
@@ -67,7 +67,7 @@ print("Predictions shape:", [p.shape for p in predictions])
 
 # Extract the predicted numbers (the ones with the highest probability)
 predicted_numbers = []
-possible_numbers = np.arange(1, 46)  # Adjusted to 45 numbers instead of 59
+possible_numbers = np.arange(1, 58)  # Adjusted to 45 numbers instead of 59
 
 for i in range(6):
     # Find the index of the highest probability (most likely number)
@@ -78,8 +78,9 @@ for i in range(6):
     
     predicted_numbers.append(predicted_number)
 
-# Print the predicted winning numbers for draw 2497
-print("Predicted Winning Numbers for Draw 2497:", predicted_numbers)
+# Print the predicted winning numbers for new draw
+sorted_arr_asc = sorted(predicted_numbers, reverse=False)
+print("Predicted Winning Numbers for New Draw:", sorted_arr_asc)
 
 
 
